@@ -1,61 +1,21 @@
-import nltk
-nltk.download('punkt')
-nltk.download('punkt_tab')
-nltk.download('stopwords')
+from flask import Flask, request, render_template
+import pickle
+from explain_llm import generate_explanation
 
-import streamlit as st
-import pickle 
-import string
-from nltk.corpus import stopwords
-from nltk.stem.porter import PorterStemmer
+app = Flask(__name__)
+model = pickle.load(open("model.pkl", "rb"))
+vectorizer = pickle.load(open("vectorizer.pkl", "rb"))
 
-ps = PorterStemmer()
+@app.route('/', methods=["GET", "POST"])
+def index():
+    explanation = prediction = ""
+    if request.method == "POST":
+        message = request.form["message"]
+        vec_msg = vectorizer.transform([message])
+        prediction = model.predict(vec_msg)[0]
+        prediction = "Spam" if prediction == 1 else "Not Spam"
+        explanation = generate_explanation(message, prediction)
+    return render_template("index.html", prediction=prediction, explanation=explanation)
 
-
-def transform_text(text):
-    text = text.lower()
-    text = nltk.word_tokenize(text)
-
-    y = []
-    for i in text:
-        if i.isalnum():
-            y.append(i)
-
-    text = y[:]
-    y.clear()
-
-    for i in text:
-        if i not in stopwords.words('english') and i not in string.punctuation:
-            y.append(i)
-
-    text = y[:]
-    y.clear()
-
-    for i in text:
-        y.append(ps.stem(i))
-
-    return " ".join(y)
-
-
-tk = pickle.load(open("vectorizer.pkl", 'rb'))
-model = pickle.load(open("model.pkl", 'rb'))
-
-st.title("SMS Spam Detection Model")
-st.write("*Made by Edunet Foundation*")
-    
-
-input_sms = st.text_input("Enter the SMS")
-
-if st.button('Predict'):
-
-    # 1. preprocess
-    transformed_sms = transform_text(input_sms)
-    # 2. vectorize
-    vector_input = tk.transform([transformed_sms])
-    # 3. predict
-    result = model.predict(vector_input)[0]
-    # 4. Display
-    if result == 1:
-        st.header("Spam")
-    else:
-        st.header("Not Spam")
+if __name__ == '__main__':
+    app.run(debug=True)
