@@ -1,21 +1,57 @@
-from flask import Flask, request, render_template
+from flask import Flask, render_template, request
 import pickle
 from explain_llm import generate_explanation
+from nltk.corpus import stopwords
+from nltk.stem.porter import PorterStemmer
+import string
+import nltk
+
+nltk.download('punkt')
+nltk.download('stopwords')
 
 app = Flask(__name__)
-model = pickle.load(open("model.pkl", "rb"))
-vectorizer = pickle.load(open("vectorizer.pkl", "rb"))
+ps = PorterStemmer()
 
-@app.route('/', methods=["GET", "POST"])
+# Load ML model and vectorizer
+model = pickle.load(open("model.pkl", 'rb'))
+vectorizer = pickle.load(open("vectorizer.pkl", 'rb'))
+
+def transform_text(text):
+    text = text.lower()
+    tokens = nltk.word_tokenize(text)
+
+    y = []
+    for i in tokens:
+        if i.isalnum():
+            y.append(i)
+
+    tokens = y[:]
+    y.clear()
+
+    for i in tokens:
+        if i not in stopwords.words('english') and i not in string.punctuation:
+            y.append(i)
+
+    tokens = y[:]
+    y.clear()
+
+    for i in tokens:
+        y.append(ps.stem(i))
+
+    return " ".join(y)
+
+@app.route("/", methods=["GET", "POST"])
 def index():
-    explanation = prediction = ""
+    prediction = ""
+    explanation = ""
     if request.method == "POST":
-        message = request.form["message"]
-        vec_msg = vectorizer.transform([message])
-        prediction = model.predict(vec_msg)[0]
-        prediction = "Spam" if prediction == 1 else "Not Spam"
-        explanation = generate_explanation(message, prediction)
+        input_sms = request.form["sms"]
+        transformed_sms = transform_text(input_sms)
+        vector_input = vectorizer.transform([transformed_sms])
+        result = model.predict(vector_input)[0]
+        prediction = "Spam" if result == 1 else "Not Spam"
+        explanation = generate_explanation(input_sms, prediction)
     return render_template("index.html", prediction=prediction, explanation=explanation)
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     app.run(debug=True)
