@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>SMS Spam Detection with LLM</title>
+</head>
+<body style="font-family: sans-serif; padding: 30px;">
+    <h1>📩 SMS Spam Detection</h1>
+    <form method="post">
+        <label>Enter SMS:</label><br>
+        <textarea name="sms" rows="5" cols="50" required></textarea><br><br>
+        <input type="submit" value="Predict">
+    </form>
+
+    {% if prediction %}
+        <h2>Prediction: {{ prediction }}</h2>
+        <h3>🧠 Explanation:</h3>
+        <p>{{ explanation }}</p>
+    {% endif %}
+</body>
+</html>
